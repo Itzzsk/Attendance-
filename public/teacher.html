@@ -142,7 +142,7 @@
                 const attendanceData = { date, subject, studentsPresent: selectedStudents };
 
                 try {
-                    const response = await fetch("http://localhost:9000/teacher/mark-attendance", {
+                    const response = await fetch("/teacher/mark-attendance", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(attendanceData)
@@ -169,7 +169,7 @@
             }
 
             try {
-                const response = await fetch(`http://localhost:9000/teacher/attendance?date=${dateInput}&subject=${subject}`);
+                const response = await fetch(`/teacher/attendance?date=${dateInput}&subject=${subject}`);
                 const data = await response.json();
 
                 if (!response.ok) throw new Error(data.message || "Error fetching attendance data.");
