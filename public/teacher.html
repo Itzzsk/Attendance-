@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teacher Panel</title>
     <link rel="stylesheet" href="tstyle.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Google Fonts - Poppins -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+
 </head>
 <body>
     <div class="container">
@@ -18,15 +23,24 @@
             <h2>Mark Attendance</h2>
             <label for="date">Date:</label>
             <input type="date" id="date">
+            
+           <!-- Include Font Awesome CDN -->
+<script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
 
-            <label for="subject">Select Subject:</label>
-            <select id="subject">
-                <option value="">-- Select Subject --</option>
-                <option value="ML">Machine Learning</option>
-                <option value="Software Testing">Software Testing</option>
-                <option value="MAD">Mobile App Development</option>
-                <option value="ECD">Embedded Computing & Design</option>
-            </select>
+<div class="relative w-full">
+    <label for="subject" class="block text-white font-medium mb-2">Select Subject:</label>
+    <div class="relative">
+        <select id="subject" class="w-full p-3 bg-gray-900 text-white border border-gray-600 rounded-lg appearance-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
+            <option value="">-- Select Subject --</option>
+            <option value="ML">Machine Learning</option>
+            <option value="Software Testing">Software Testing</option>
+            <option value="MAD">Mobile App Development</option>
+            <option value="ECD">Embedded Computing & Design</option>
+        </select>
+        <!-- Font Awesome Dropdown Icon -->
+    </div>
+</div>
+
 
             <div id="loading">Loading students...</div>
             <form id="attendance-form">
@@ -51,6 +65,7 @@
             <input type="date" id="view-date">
 
             <label for="view-subject">Select Subject:</label>
+            <div class="dropdown-container"></div>
             <select id="view-subject">
                 <option value="">-- Select Subject --</option>
                 <option value="ML">Machine Learning</option>
@@ -81,7 +96,6 @@
             const studentList = document.getElementById("students-list");
             const loadingMessage = document.getElementById("loading");
 
-            
             async function fetchStudents() {
                 try {
                     const response = await fetch("/teacher/students");
@@ -128,7 +142,7 @@
                 const attendanceData = { date, subject, studentsPresent: selectedStudents };
 
                 try {
-                    const response = await fetch("/teacher/mark-attendance", {
+                    const response = await fetch("http://localhost:9000/teacher/mark-attendance", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(attendanceData)
@@ -155,7 +169,7 @@
             }
 
             try {
-                const response = await fetch(`/teacher/attendance?date=${dateInput}&subject=${subject}`);
+                const response = await fetch(`http://localhost:9000/teacher/attendance?date=${dateInput}&subject=${subject}`);
                 const data = await response.json();
 
                 if (!response.ok) throw new Error(data.message || "Error fetching attendance data.");
@@ -188,7 +202,7 @@
                 tableHTML += `<tr>
                     <td>${student.studentID}</td>
                     <td>${student.name}</td>
-                    <td style="color: green; font-weight: bold;">Present</td>
+                    <td style="color: green; font-poppins: bold;">Present</td>
                 </tr>`;
             });
 
@@ -196,7 +210,7 @@
                 tableHTML += `<tr>
                     <td>${student.studentID}</td>
                     <td>${student.name}</td>
-                    <td style="color: red; font-weight: bold;">Absent</td>
+                    <td style="color: red; font-poppins: bold;">Absent</td>
                 </tr>`;
             });
 
