@@ -18,7 +18,7 @@
             <h2>Mark Attendance</h2>
             <label for="date">Date:</label>
             <input type="date" id="date">
-            
+
             <label for="subject">Select Subject:</label>
             <select id="subject">
                 <option value="">-- Select Subject --</option>
@@ -68,7 +68,7 @@
             <div id="attendance-result"></div>
         </div>
     </div>
-<script src="sscript.js"></script>
+
     <script>
         function openTab(evt, tabName) {
             document.querySelectorAll(".tabcontent").forEach(tab => tab.style.display = "none");
@@ -83,24 +83,24 @@
 
             async function fetchStudents() {
                 try {
-                    const response = await fetch("http://localhost:9000/teacher/students");
-                    const students = await response.json();
+                    const response = await fetch("/teacher/students"); // Changed to relative path
+                    if (!response.ok) throw new Error("Failed to fetch students.");
 
-                    if (!students.length) {
-                        loadingMessage.innerHTML = "No students found.";
+                    const students = await response.json();
+                    loadingMessage.style.display = "none";
+
+                    if (students.length === 0) {
+                        studentList.innerHTML = "<tr><td colspan='3'>No students found.</td></tr>";
                         return;
                     }
 
-                    loadingMessage.style.display = "none";
-                    studentList.innerHTML = "";
-                    students.forEach(student => {
-                        studentList.insertAdjacentHTML("beforeend", `
-                            <tr>
-                                <td>${student.studentID}</td>
-                                <td>${student.name}</td>
-                                <td><input type="checkbox" name="attendance" value="${student.studentID}"></td>
-                            </tr>`);
-                    });
+                    studentList.innerHTML = students.map(student => `
+                        <tr>
+                            <td>${student.studentID}</td>
+                            <td>${student.name}</td>
+                            <td><input type="checkbox" name="attendance" value="${student.studentID}"></td>
+                        </tr>
+                    `).join("");
                 } catch (error) {
                     console.error("Error fetching students:", error);
                     loadingMessage.innerHTML = "Error loading students.";
@@ -126,7 +126,7 @@
                 const attendanceData = { date, subject, studentsPresent: selectedStudents };
 
                 try {
-                    const response = await fetch("http://localhost:9000/teacher/mark-attendance", {
+                    const response = await fetch("/teacher/mark-attendance", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(attendanceData)
@@ -153,7 +153,7 @@
             }
 
             try {
-                const response = await fetch(`http://localhost:9000/teacher/attendance?date=${dateInput}&subject=${subject}`);
+                const response = await fetch(`/teacher/attendance?date=${dateInput}&subject=${subject}`);
                 const data = await response.json();
 
                 if (!response.ok) throw new Error(data.message || "Error fetching attendance data.");
