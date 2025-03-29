@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Panel</title>
+    <link rel="stylesheet" href="tstyle.css">
+</head>
+<body>
+    <div class="container">
+        <div class="tab-container">
+            <button class="tablinks active" onclick="openTab(event, 'MarkAttendance')">Mark Attendance</button>
+            <button class="tablinks" onclick="openTab(event, 'ViewAttendance')">View Attendance</button>
+        </div>
+
+        <!-- Mark Attendance Section -->
+        <div id="MarkAttendance" class="tabcontent">
+            <h2>Mark Attendance</h2>
+            <label for="date">Date:</label>
+            <input type="date" id="date">
+            
+            <label for="subject">Select Subject:</label>
+            <select id="subject">
+                <option value="">-- Select Subject --</option>
+                <option value="ML">Machine Learning</option>
+                <option value="Software Testing">Software Testing</option>
+                <option value="MAD">Mobile App Development</option>
+                <option value="ECD">Embedded Computing & Design</option>
+            </select>
+
+            <div id="loading">Loading students...</div>
+            <form id="attendance-form">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th>Present</th>
+                        </tr>
+                    </thead>
+                    <tbody id="students-list"></tbody>
+                </table>
+                <button type="submit">Submit Attendance</button>
+            </form>
+        </div>
+
+        <!-- View Attendance Section -->
+        <div id="ViewAttendance" class="tabcontent" style="display: none;">
+            <h2>View Attendance</h2>
+            <label for="view-date">Select Date:</label>
+            <input type="date" id="view-date">
+
+            <label for="view-subject">Select Subject:</label>
+            <select id="view-subject">
+                <option value="">-- Select Subject --</option>
+                <option value="ML">Machine Learning</option>
+                <option value="Software Testing">Software Testing</option>
+                <option value="MAD">Mobile App Development</option>
+                <option value="ECD">Embedded Computing & Design</option>
+            </select>
+
+            <button onclick="fetchAttendance()">View Attendance</button>
+            <div id="attendance-summary" style="display: none;">
+                <p><strong>Total Students:</strong> <span id="total-students">0</span></p>
+                <p><strong>Total Present:</strong> <span id="total-present">0</span></p>
+                <p><strong>Total Absent:</strong> <span id="total-absent">0</span></p>
+            </div>
+            <div id="attendance-result"></div>
+        </div>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            document.querySelectorAll(".tabcontent").forEach(tab => tab.style.display = "none");
+            document.querySelectorAll(".tablinks").forEach(tab => tab.classList.remove("active"));
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.classList.add("active");
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const studentList = document.getElementById("students-list");
+            const loadingMessage = document.getElementById("loading");
+
+            async function fetchStudents() {
+                try {
+                    const response = await fetch("http://localhost:9000/teacher/students");
+                    const students = await response.json();
+
+                    if (!students.length) {
+                        loadingMessage.innerHTML = "No students found.";
+                        return;
+                    }
+
+                    loadingMessage.style.display = "none";
+                    studentList.innerHTML = "";
+                    students.forEach(student => {
+                        studentList.insertAdjacentHTML("beforeend", `
+                            <tr>
+                                <td>${student.studentID}</td>
+                                <td>${student.name}</td>
+                                <td><input type="checkbox" name="attendance" value="${student.studentID}"></td>
+                            </tr>`);
+                    });
+                } catch (error) {
+                    console.error("Error fetching students:", error);
+                    loadingMessage.innerHTML = "Error loading students.";
+                }
+            }
+
+            fetchStudents();
+
+            document.getElementById("attendance-form").addEventListener("submit", async function (event) {
+                event.preventDefault();
+
+                const date = document.getElementById("date").value;
+                const subject = document.getElementById("subject").value;
+
+                if (!date || !subject) {
+                    alert("Please select a date and subject.");
+                    return;
+                }
+
+                const selectedStudents = Array.from(document.querySelectorAll('input[name="attendance"]:checked'))
+                    .map(checkbox => checkbox.value);
+
+                const attendanceData = { date, subject, studentsPresent: selectedStudents };
+
+                try {
+                    const response = await fetch("http://localhost:9000/teacher/mark-attendance", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(attendanceData)
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.message || "Failed to submit attendance.");
+
+                    alert("Attendance submitted successfully!");
+                } catch (error) {
+                    console.error("Error submitting attendance:", error);
+                    alert("Error submitting attendance. Check console for details.");
+                }
+            });
+        });
+
+        async function fetchAttendance() {
+            const dateInput = document.getElementById("view-date").value;
+            const subject = document.getElementById("view-subject").value;
+
+            if (!dateInput || !subject) {
+                alert("Please select a date and subject.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:9000/teacher/attendance?date=${dateInput}&subject=${subject}`);
+                const data = await response.json();
+
+                if (!response.ok) throw new Error(data.message || "Error fetching attendance data.");
+                displayAttendance(data);
+            } catch (error) {
+                console.error("Error fetching attendance:", error);
+                alert("Error fetching attendance data. Check console for details.");
+            }
+        }
+
+        function displayAttendance(data) {
+            const summaryDiv = document.getElementById("attendance-summary");
+            const resultDiv = document.getElementById("attendance-result");
+
+            document.getElementById("total-students").textContent = data.presentStudents.length + data.absentStudents.length;
+            document.getElementById("total-present").textContent = data.presentStudents.length;
+            document.getElementById("total-absent").textContent = data.absentStudents.length;
+
+            let tableHTML = `<table>
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            data.presentStudents.forEach(student => {
+                tableHTML += `<tr>
+                    <td>${student.studentID}</td>
+                    <td>${student.name}</td>
+                    <td style="color: green; font-weight: bold;">Present</td>
+                </tr>`;
+            });
+
+            data.absentStudents.forEach(student => {
+                tableHTML += `<tr>
+                    <td>${student.studentID}</td>
+                    <td>${student.name}</td>
+                    <td style="color: red; font-weight: bold;">Absent</td>
+                </tr>`;
+            });
+
+            tableHTML += `</tbody></table>`;
+            resultDiv.innerHTML = tableHTML;
+            summaryDiv.style.display = "block"; 
+        }
+    </script>
+</body>
+</html>
