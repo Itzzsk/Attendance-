@@ -37,11 +37,11 @@ const connectDB = async () => {
 
 // Import Routes
 const teacherRoutes = require('./routes/teacherRoutes');
-const studentRoutes = require('./routes/studentRoutes');
+
 
 // Routes
 app.use('/teacher', teacherRoutes);
-app.use('/student', studentRoutes);
+
 
 // Redirect '/' to teacher.html
 app.get('/', (req, res) => {
