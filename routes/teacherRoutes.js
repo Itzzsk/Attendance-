@@ -30,18 +30,17 @@ router.post("/mark-attendance", async (req, res) => {
 
         // 🔍 Fetch students who are marked present
         const presentStudents = await Student.find({ studentID: { $in: studentsPresent } }).select("_id");
-
-        if (!presentStudents.length) {
-            console.log("⚠️ No valid students found with provided IDs.");
-            return res.status(400).json({ message: "⚠️ No valid students found." });
-        }
-
         const presentStudentIds = presentStudents.map(student => student._id);
         console.log("✅ Present Student IDs:", presentStudentIds);
 
+        // Fetch all students to determine absent ones
+        const allStudents = await Student.find({}, "_id studentID");
+        const absentStudentIds = allStudents
+            .filter(s => !studentsPresent.includes(s.studentID))
+            .map(s => s._id);
+
         // 🔄 Check if attendance exists for the date & subject
         let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
-
         if (!attendanceRecord) {
             attendanceRecord = new Attendance({
                 date: formattedDate,
@@ -52,7 +51,6 @@ router.post("/mark-attendance", async (req, res) => {
             console.log("🛠 Updating existing attendance record.");
             attendanceRecord.presentStudents = presentStudentIds;
         }
-
         await attendanceRecord.save();
         console.log("✅ Attendance saved successfully!");
 
@@ -62,16 +60,9 @@ router.post("/mark-attendance", async (req, res) => {
             { $inc: { [`subjects.${subject}.attendedClasses`]: 1, [`subjects.${subject}.totalClasses`]: 1 } }
         );
 
-        // Fetch all students to correctly mark absentees
-        const allStudents = await Student.find({}, "_id");
-
-        const absentStudentIds = allStudents
-            .filter(s => !presentStudentIds.includes(s._id))
-            .map(s => s._id);
-
         await Student.updateMany(
-            { _id: { $in: absentStudentIds } }, // Mark absentees
-            { $inc: { [`subjects.${subject}.totalClasses`]: 1 } }
+            { _id: { $in: absentStudentIds } },
+            { $inc: { [`subjects.${subject}.totalClasses`]: 1 } } // Ensure absentees' total classes are updated
         );
 
         res.json({ message: "✅ Attendance submitted successfully!" });
@@ -81,7 +72,6 @@ router.post("/mark-attendance", async (req, res) => {
     }
 });
 
-// 📌 Fetch Attendance by Date & Subject
 // 📌 Fetch Attendance by Date & Subject
 router.get("/attendance", async (req, res) => {
     try {
@@ -106,7 +96,6 @@ router.get("/attendance", async (req, res) => {
 
         // Fetch all students
         const allStudents = await Student.find({}, "studentID name");
-
         if (!allStudents.length) {
             console.log("⚠️ No student records found.");
             return res.status(500).json({ message: "⚠️ No student records available" });
