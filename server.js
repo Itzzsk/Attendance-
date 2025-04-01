@@ -3,7 +3,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const path = require('path');
 
 const app = express();
 
@@ -13,41 +12,40 @@ app.use(bodyParser.json());
 app.use(express.static('public')); // Serves static files from 'public'
 
 // MongoDB Connection
+mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => {
+    console.log("✅ MongoDB Connected Successfully");
+}).catch(err => {
+    console.error("❌ MongoDB Connection Error:", err.message);
+    process.exit(1);
+});
+
 const connectDB = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
+        await mongoose.connect(process.env.MONGO_URI_ATTENDANCE, {
             useNewUrlParser: true,
             useUnifiedTopology: true
         });
-        console.log("✅ MongoDB Connected Successfully");
-
-        // Connect to Attendance Database (if different)
-        if (process.env.MONGO_URI_ATTENDANCE) {
-            await mongoose.createConnection(process.env.MONGO_URI_ATTENDANCE, {
-                useNewUrlParser: true,
-                useUnifiedTopology: true
-            });
-            console.log("✅ MongoDB (Attendance) Connected Successfully");
-        }
+        console.log("✅ MongoDB (Attendance) Connected Successfully");
     } catch (error) {
         console.error("❌ MongoDB Connection Error:", error.message);
         process.exit(1);
     }
 };
 
-// Connect to Database
-connectDB();
-
 // Import Routes
 const teacherRoutes = require('./routes/teacherRoutes');
+const studentRoutes = require('./routes/studentRoutes');
 
-// API Routes
+// Routes
 app.use('/teacher', teacherRoutes);
+app.use('/student', studentRoutes);
 
-
-// Serve Frontend (Redirect '/' to teacher.html)
+// Redirect '/' to teacher.html
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'teacher.html'));
+    res.redirect('/teacher.html'); // Redirects root URL to teacher.html
 });
 
 // Handle Undefined Routes
@@ -58,6 +56,6 @@ app.use((req, res) => {
 // Suppress MongoDB Logs
 mongoose.set('debug', false);
 
-// Start Server
+// Server Initialization
 const PORT = process.env.PORT || 9000;
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
