@@ -58,31 +58,29 @@
             </form>
         </div>
 
-        <!-- View Attendance Section -->
-        <div id="ViewAttendance" class="tabcontent" style="display: none;">
-            <h2>View Attendance</h2>
-            <label for="view-date">Select Date:</label>
-            <input type="date" id="view-date">
-
-            <label for="view-subject">Select Subject:</label>
-            <div class="dropdown-container"></div>
-            <select id="view-subject">
-                <option value="">-- Select Subject --</option>
-                <option value="ML">Machine Learning</option>
-                <option value="Software Testing">Software Testing</option>
-                <option value="MAD">Mobile App Development</option>
-                <option value="ECD">Embedded Computing & Design</option>
-            </select>
-
-            <button onclick="fetchAttendance()">View Attendance</button>
-            <div id="attendance-summary" style="display: none;">
-                <p><strong>Total Students:</strong> <span id="total-students">0</span></p>
-                <p><strong>Total Present:</strong> <span id="total-present">0</span></p>
-                <p><strong>Total Absent:</strong> <span id="total-absent">0</span></p>
-            </div>
-            <div id="attendance-result"></div>
-        </div>
+          <!-- View Attendance Tab -->
+    <div id="ViewAttendance" class="tabcontent" style="display: none;">
+      <div>
+        <label for="subjectSelect">Select Subject:</label>
+        <select id="subjectSelect">
+          <option value="">-- Select Subject --</option>
+          <option value="ML">Machine Learning</option>
+          <option value="Software Testing">Software Testing</option>
+          <option value="MAD">Mobile App Development</option>
+          <option value="ECD">Embedded Computing & Design</option>
+        </select>
+        <button onclick="loadRegister()">Load Register</button>
+      </div>
+    
+      <!-- Display attendance register for the selected subject -->
+      <div id="attendanceRegisterContainer" style="margin-top: 20px;"></div>
+    
+      <!-- Edit Button (Initially hidden) -->
+    
+      <!-- Save Changes Button (Initially hidden) -->
+      <button id="saveChangesBtn" onclick="saveAttendanceChanges()" style="margin-top: 20px; display: none;">Save Changes</button>
     </div>
+  </div>
 
     <script>
         function openTab(evt, tabName) {
@@ -159,66 +157,108 @@
                 }
             });
         });
-
-        async function fetchAttendance() {
-            const dateInput = document.getElementById("view-date").value;
-            const subject = document.getElementById("view-subject").value;
-
-            if (!dateInput || !subject) {
-                alert("Please select a date and subject.");
-                return;
-            }
-
-            try {
-                const response = await fetch(`/teacher/attendance?date=${dateInput}&subject=${subject}`);
-                const data = await response.json();
-
-                if (!response.ok) throw new Error(data.message || "Error fetching attendance data.");
-                displayAttendance(data);
-            } catch (error) {
-                console.error("Error fetching attendance:", error);
-                alert("Error fetching attendance data. Check console for details.");
-            }
+ async function loadRegister() {
+      const subject = document.getElementById('subjectSelect').value;
+      const res = await fetch(`/teacher/attendance-register?subject=${encodeURIComponent(subject)}`);
+      const data = await res.json();
+    
+      const { students, attendanceMap } = data;
+    
+      const dates = Object.keys(attendanceMap).sort(); // sort dates for column headers
+      const table = document.createElement('table');
+      table.border = '1';
+      table.style.borderCollapse = 'collapse';
+    
+      // Header Row
+      const headerRow = document.createElement('tr');
+      headerRow.innerHTML = `<th>Student ID</th><th>Name</th>` +
+        dates.map(date => `<th>${date}</th>`).join('');
+      table.appendChild(headerRow);
+    
+      // Body Rows
+      students.forEach(student => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${student.studentID}</td><td>${student.name}</td>` +
+          dates.map(date => {
+            const presentIDs = attendanceMap[date].map(id => id.toString());
+            return `<td class="attendance-status" data-status="${presentIDs.includes(student._id) ? 'P' : 'A'}" style="text-align:center;">
+                      ${presentIDs.includes(student._id) ? 'P' : 'A'}
+                    </td>`;
+          }).join('');
+        table.appendChild(row);
+      });
+    
+      const container = document.getElementById('attendanceRegisterContainer');
+      container.innerHTML = '';
+      container.appendChild(table);
+    
+      // After loading, enable the EDIT button
+      document.getElementById("editButton").style.display = 'inline-block';
+    }
+    
+    // Function to toggle between view and edit mode
+    function toggleEditMode() {
+      const statusCells = document.querySelectorAll('.attendance-status');
+      const editButton = document.getElementById("editButton");
+      const saveButton = document.getElementById("saveChangesBtn");
+    
+      // Toggle editable status for each attendance cell
+      statusCells.forEach(cell => {
+        cell.classList.toggle("editable");
+        cell.addEventListener("click", toggleStatus);
+      });
+    
+      // Toggle the button text between "EDIT" and "Done"
+      if (editButton.textContent === "EDIT") {
+        editButton.textContent = "Done"; // After clicking EDIT, show "Done"
+      } else {
+        editButton.textContent = "EDIT"; // Revert back to EDIT when clicking Done
+      }
+    
+      // Show Save Changes button
+      saveButton.style.display = saveButton.style.display === "none" ? "inline-block" : "none";
+    }
+    
+    // Function to toggle attendance status between P and A
+    function toggleStatus() {
+      const currentStatus = this.dataset.status;
+      const newStatus = currentStatus === 'P' ? 'A' : 'P';
+      this.textContent = newStatus;
+      this.dataset.status = newStatus;
+    }
+    
+    // Function to save changes (you can integrate it with backend)
+    function saveAttendanceChanges() {
+      const attendanceData = [];
+    
+      // Collect modified attendance data
+      document.querySelectorAll('.attendance-status').forEach(cell => {
+        const studentID = cell.parentElement.cells[0].textContent;
+        const date = cell.parentElement.cells[2].textContent; // Get the date from table header
+        const status = cell.textContent === 'P' ? 'P' : 'A';
+        attendanceData.push({ studentID, date, status });
+      });
+    
+      // Send modified attendance data to backend
+      fetch("/teacher/save-attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attendanceData })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert("Attendance updated successfully!");
+          document.getElementById("saveChangesBtn").style.display = "none"; // Hide Save Changes button
+        } else {
+          alert("Error saving changes.");
         }
-
-        function displayAttendance(data) {
-            const summaryDiv = document.getElementById("attendance-summary");
-            const resultDiv = document.getElementById("attendance-result");
-
-            document.getElementById("total-students").textContent = data.presentStudents.length + data.absentStudents.length;
-            document.getElementById("total-present").textContent = data.presentStudents.length;
-            document.getElementById("total-absent").textContent = data.absentStudents.length;
-
-            let tableHTML = `<table>
-                <thead>
-                    <tr>
-                        <th>Student ID</th>
-                        <th>Name</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-
-            data.presentStudents.forEach(student => {
-                tableHTML += `<tr>
-                    <td>${student.studentID}</td>
-                    <td>${student.name}</td>
-                    <td style="color: green; font-poppins: bold;">Present</td>
-                </tr>`;
-            });
-
-            data.absentStudents.forEach(student => {
-                tableHTML += `<tr>
-                    <td>${student.studentID}</td>
-                    <td>${student.name}</td>
-                    <td style="color: red; font-poppins: bold;">Absent</td>
-                </tr>`;
-            });
-
-            tableHTML += `</tbody></table>`;
-            resultDiv.innerHTML = tableHTML;
-            summaryDiv.style.display = "block"; 
-        }
+      })
+      .catch(error => {
+        console.error("Error saving attendance:", error);
+      });
+    }
+     
     </script>
 </body>
 </html>
