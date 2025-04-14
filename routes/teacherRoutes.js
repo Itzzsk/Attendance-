@@ -3,7 +3,7 @@ const router = express.Router();
 const Student = require("../models/student");
 const Attendance = require("../models/Attendance");
 
-// 📌 Fetch all students for attendance
+// 📌 GET: Fetch all students
 router.get("/students", async (req, res) => {
     try {
         const students = await Student.find({}, "studentID name");
@@ -14,33 +14,23 @@ router.get("/students", async (req, res) => {
     }
 });
 
-// 📌 Submit Attendance
+// 📌 POST: Mark attendance
 router.post("/mark-attendance", async (req, res) => {
     try {
-        console.log("📩 Received Attendance Request:", req.body);
+        let { date, subject, studentsPresent } = req.body;
 
-        const { date, subject, studentsPresent } = req.body;
-
-        if (!date || !subject || !Array.isArray(studentsPresent)) {
-            console.log("❌ Invalid Request Data:", req.body);
-            return res.status(400).json({ message: "❌ Invalid data provided" });
+        date = date.trim();
+        const parsedDate = new Date(date);
+        if (isNaN(parsedDate)) {
+            return res.status(400).json({ message: "❌ Invalid date format" });
         }
+        const formattedDate = parsedDate.toISOString().split("T")[0];
 
-        const formattedDate = new Date(date).toISOString().split("T")[0];
+        const presentStudents = await Student.find({ studentID: { $in: studentsPresent } }).select("_id studentID");
+        const presentStudentIds = presentStudents.map(s => s._id);
 
-        // 🔍 Fetch students who are marked present
-        const presentStudents = await Student.find({ studentID: { $in: studentsPresent } }).select("_id");
-        const presentStudentIds = presentStudents.map(student => student._id);
-        console.log("✅ Present Student IDs:", presentStudentIds);
-
-        // Fetch all students to determine absent ones
-        const allStudents = await Student.find({}, "_id studentID");
-        const absentStudentIds = allStudents
-            .filter(s => !studentsPresent.includes(s.studentID))
-            .map(s => s._id);
-
-        // 🔄 Check if attendance exists for the date & subject
         let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
+
         if (!attendanceRecord) {
             attendanceRecord = new Attendance({
                 date: formattedDate,
@@ -48,13 +38,48 @@ router.post("/mark-attendance", async (req, res) => {
                 presentStudents: presentStudentIds
             });
         } else {
-            console.log("🛠 Updating existing attendance record.");
             attendanceRecord.presentStudents = presentStudentIds;
         }
-        await attendanceRecord.save();
-        console.log("✅ Attendance saved successfully!");
 
-        // 🔄 Update student attendance counts
+        await attendanceRecord.save();
+        res.json({ message: "✅ Attendance submitted successfully!" });
+
+    } catch (error) {
+        console.error("❌ Error submitting attendance:", error);
+        res.status(500).json({ message: "❌ Server error while marking attendance" });
+    }
+});
+
+// 📌 PUT: Update attendance after submission
+router.put("/update-attendance", async (req, res) => {
+    try {
+        const { date, subject, studentsPresent } = req.body;
+        console.log("📩 Attendance update received:", req.body);
+
+        if (!date || !subject || !Array.isArray(studentsPresent)) {
+            return res.status(400).json({ message: "❌ Invalid attendance data" });
+        }
+
+        const formattedDate = new Date(date).toISOString().split("T")[0];
+
+        const presentStudents = await Student.find({ studentID: { $in: studentsPresent } }).select("_id studentID");
+        const presentStudentIds = presentStudents.map(s => s._id);
+
+        const allStudents = await Student.find({}, "_id studentID");
+        const absentStudentIds = allStudents
+            .filter(s => !studentsPresent.includes(s.studentID))
+            .map(s => s._id);
+
+        let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
+
+        if (!attendanceRecord) {
+            return res.status(404).json({ message: "❌ Attendance record not found" });
+        }
+
+        attendanceRecord.presentStudents = presentStudentIds;
+        await attendanceRecord.save();
+        console.log("✅ Attendance record updated.");
+
         await Student.updateMany(
             { _id: { $in: presentStudentIds } },
             { $inc: { [`subjects.${subject}.attendedClasses`]: 1, [`subjects.${subject}.totalClasses`]: 1 } }
@@ -62,62 +87,102 @@ router.post("/mark-attendance", async (req, res) => {
 
         await Student.updateMany(
             { _id: { $in: absentStudentIds } },
-            { $inc: { [`subjects.${subject}.totalClasses`]: 1 } } // Ensure absentees' total classes are updated
+            { $inc: { [`subjects.${subject}.totalClasses`]: 1 } }
         );
 
-        res.json({ message: "✅ Attendance submitted successfully!" });
+        res.json({ message: "✅ Attendance updated successfully!" });
+
     } catch (error) {
-        console.error("❌ Server Error:", error);
-        res.status(500).json({ message: "❌ Server error. Check logs for details." });
+        console.error("❌ Error updating attendance:", error);
+        res.status(500).json({ message: "❌ Server error while updating attendance" });
     }
 });
 
-// 📌 Fetch Attendance by Date & Subject
-router.get("/attendance", async (req, res) => {
+// 📌 GET: View full attendance by subject with dates, present & absent
+router.get("/attendance-register", async (req, res) => {
     try {
-        const { date, subject } = req.query;
+        const { subject } = req.query;
+        if (!subject) return res.status(400).json({ message: "Subject is required" });
 
-        if (!date || !subject) {
-            return res.status(400).json({ message: "❌ Date and subject are required" });
-        }
+        const attendances = await Attendance.find({ subject }).sort({ date: 1 });
+        const students = await Student.find({}, "studentID name");
 
-        const formattedDate = new Date(date).toISOString().split("T")[0];
-        console.log(`📊 Fetching attendance for ${subject} on ${formattedDate}...`);
-
-        // Fetch attendance record
-        const attendanceRecord = await Attendance.findOne({ date: formattedDate, subject }).populate("presentStudents", "studentID name");
-
-        if (!attendanceRecord) {
-            console.log("❌ No attendance record found.");
-            return res.status(404).json({ message: "❌ No attendance data found." });
-        }
-
-        console.log("✅ Attendance Record Found:", attendanceRecord);
-
-        // Fetch all students
-        const allStudents = await Student.find({}, "studentID name");
-        if (!allStudents.length) {
-            console.log("⚠️ No student records found.");
-            return res.status(500).json({ message: "⚠️ No student records available" });
-        }
-
-        // Extract present and absent students
-        const presentStudents = attendanceRecord.presentStudents.map(s => ({ studentID: s.studentID, name: s.name }));
-        const presentStudentIDs = presentStudents.map(s => s.studentID);
-
-        const absentStudents = allStudents
-            .filter(s => !presentStudentIDs.includes(s.studentID))
-            .map(s => ({ studentID: s.studentID, name: s.name }));
-
-        res.json({
-            date: formattedDate,
-            subject,
-            presentStudents,
-            absentStudents,
+        const attendanceMap = {};
+        attendances.forEach(record => {
+            const dateStr = new Date(record.date).toISOString().split("T")[0];
+            attendanceMap[dateStr] = record.presentStudents;
         });
+
+        res.json({ students, subject, attendanceMap });
+
     } catch (error) {
-        console.error("❌ Error fetching attendance data:", error);
-        res.status(500).json({ message: "❌ Server error. Check console logs for details." });
+        console.error("❌ Error in /attendance-register:", error);
+        res.status(500).json({ message: "❌ Server error" });
+    }
+});
+
+// 📌 POST: Save attendance from table editor (used when manually editing)
+router.post('/save-attendance', async (req, res) => {
+    const { attendanceData, subject } = req.body;
+    const invalidEntries = [];
+
+    console.log("📥 Received attendance data:", attendanceData);
+    console.log("📚 Subject:", subject);
+
+    try {
+        for (let data of attendanceData) {
+            const { studentID, date, status } = data;
+            console.log(`📌 Processing: ${studentID} - ${date} - ${status}`);
+
+            const parsedDate = new Date(date);
+            if (!date || isNaN(parsedDate)) {
+                console.warn(`❌ Invalid date skipped for student ${studentID}`);
+                invalidEntries.push(studentID);
+                continue;
+            }
+
+            const formattedDate = parsedDate.toISOString().split("T")[0];
+            const student = await Student.findOne({ studentID });
+
+            if (!student) {
+                console.warn(`❌ Student not found: ${studentID}`);
+                invalidEntries.push(studentID);
+                continue;
+            }
+
+            let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
+
+            if (!attendanceRecord) {
+                attendanceRecord = new Attendance({
+                    date: formattedDate,
+                    subject,
+                    presentStudents: status === 'P' ? [student._id] : [],
+                });
+            } else {
+                const isPresent = attendanceRecord.presentStudents
+                    .some(id => id.toString() === student._id.toString());
+
+                if (status === 'P' && !isPresent) {
+                    attendanceRecord.presentStudents.push(student._id);
+                } else if (status === 'A' && isPresent) {
+                    attendanceRecord.presentStudents = attendanceRecord.presentStudents.filter(
+                        id => id.toString() !== student._id.toString()
+                    );
+                }
+            }
+
+            await attendanceRecord.save();
+        }
+
+        const message = invalidEntries.length > 0
+            ? `✅ Attendance saved, but skipped: ${invalidEntries.join(", ")}`
+            : "✅ All attendance saved successfully!";
+
+        res.json({ success: true, message });
+
+    } catch (error) {
+        console.error("❌ Error updating attendance:", error);
+        res.status(500).json({ success: false, message: '❌ Failed to update attendance.' });
     }
 });
 
