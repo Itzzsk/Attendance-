@@ -1,264 +1,230 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher Panel</title>
-    <link rel="stylesheet" href="tstyle.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Google Fonts - Poppins -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Teacher Panel</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
 
+    .tablinks.active {
+      background: linear-gradient(to right, #2b2b2b, #4a4a4a);
+      color: #ffffff;
+    }
 
+    .tablinks {
+      transition: all 0.3s ease;
+    }
+
+    .tabcontent {
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .glass-input {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .gradient-btn {
+      background: linear-gradient(to right, #000000, #a3a3a3);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .gradient-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(163, 163, 163, 0.3);
+    }
+
+    .gradient-btn:active {
+      transform: scale(0.97);
+    }
+  </style>
 </head>
-<body>
-    <div class="container">
-        <div class="tab-container">
-            <button class="tablinks active" onclick="openTab(event, 'MarkAttendance')">Mark Attendance</button>
-            <button class="tablinks" onclick="openTab(event, 'ViewAttendance')">View Attendance</button>
-        </div>
 
-        <!-- Mark Attendance Section -->
-        <div id="MarkAttendance" class="tabcontent">
-            <h2>Mark Attendance</h2>
-            <label for="date">Date:</label>
-            <input type="date" id="date">
-            
-           <!-- Include Font Awesome CDN -->
-<script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
+<body class="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white min-h-screen p-4">
+  <div class="max-w-4xl mx-auto glass-card rounded-2xl p-6 shadow-xl">
 
-<div class="relative w-full">
-    <label for="subject" class="block text-white font-medium mb-2">Select Subject:</label>
-    <div class="relative">
-        <select id="subject" class="w-full p-3 bg-gray-900 text-white border border-gray-600 rounded-lg appearance-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
-            <option value="">-- Select Subject --</option>
-            <option value="ML">Machine Learning</option>
-            <option value="Software Testing">Software Testing</option>
-            <option value="MAD">Mobile App Development</option>
-            <option value="ECD">Embedded Computing & Design</option>
-        </select>
-        <!-- Font Awesome Dropdown Icon -->
+
+    <!-- Tab Buttons -->
+    <div class="flex gap-2 mb-6">
+      <button class="tablinks active flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'MarkAttendance')">Mark Attendance</button>
+      <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'ViewAttendance')">View Attendance</button>
     </div>
-</div>
 
+    <!-- Mark Attendance Tab -->
+    <div id="MarkAttendance" class="tabcontent block">
+      <h2 class="text-xl font-semibold mb-4"> Mark Attendance</h2>
 
-            <div id="loading">Loading students...</div>
-            <form id="attendance-form">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Student ID</th>
-                            <th>Name</th>
-                            <th>Present</th>
-                        </tr>
-                    </thead>
-                    <tbody id="students-list"></tbody>
-                </table>
-                <button type="submit">Submit Attendance</button>
-            </form>
+      <label for="date" class="block text-sm mb-1">Date:</label>
+      <input type="date" id="date" class="mb-4 p-2 w-full text-white glass-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"/>
+
+      <label for="subject" class="block text-sm mb-1"> Select Subject:</label>
+      <select id="subject" class="w-full p-2 bg-gray-700 text-white rounded-lg mb-4 text-sm">
+        <option value="">-- Select Subject --</option>
+        <option value="ML">Machine Learning</option>
+        <option value="Software Testing">Software Testing</option>
+        <option value="MAD">Mobile App Development</option>
+        <option value="ECD">Embedded Computing & Design</option>
+      </select>
+
+      <div id="loading" class="text-yellow-400 text-sm mb-3 animate-pulse">⏳ Loading students...</div>
+
+      <form id="attendance-form">
+        <div class="overflow-x-auto rounded-lg border border-gray-700">
+          <table class="min-w-full text-sm text-center">
+            <thead class="bg-gray-700">
+              <tr>
+                <th class="p-2 border">ID</th>
+                <th class="p-2 border">Name</th>
+                <th class="p-2 border">Present</th>
+              </tr>
+            </thead>
+            <tbody id="students-list" class="bg-gray-800"></tbody>
+          </table>
         </div>
+        <button type="submit" class="mt-6 w-full py-2 rounded-lg gradient-btn text-sm font-medium">Submit Attendance</button>
+      </form>
+    </div>
 
-          <!-- View Attendance Tab -->
-    <div id="ViewAttendance" class="tabcontent" style="display: none;">
-      <div>
-        <label for="subjectSelect">Select Subject:</label>
-        <select id="subjectSelect">
-          <option value="">-- Select Subject --</option>
-          <option value="ML">Machine Learning</option>
-          <option value="Software Testing">Software Testing</option>
-          <option value="MAD">Mobile App Development</option>
-          <option value="ECD">Embedded Computing & Design</option>
-        </select>
-        <button onclick="loadRegister()">Load Register</button>
-      </div>
-    
-      <!-- Display attendance register for the selected subject -->
-      <div id="attendanceRegisterContainer" style="margin-top: 20px;"></div>
-    
-      <!-- Edit Button (Initially hidden) -->
-    
-      <!-- Save Changes Button (Initially hidden) -->
-      <button id="saveChangesBtn" onclick="saveAttendanceChanges()" style="margin-top: 20px; display: none;">Save Changes</button>
+    <!-- View Attendance Tab -->
+    <div id="ViewAttendance" class="tabcontent hidden">
+      <h2 class="text-xl font-semibold mb-4"> View Attendance</h2>
+
+      <label for="subjectSelect" class="block text-sm mb-1"> Select Subject:</label>
+      <select id="subjectSelect" class="w-full p-2 bg-gray-700 text-white rounded-lg mb-4 text-sm">
+        <option value="">-- Select Subject --</option>
+        <option value="ML">Machine Learning</option>
+        <option value="Software Testing">Software Testing</option>
+        <option value="MAD">Mobile App Development</option>
+        <option value="ECD">Embedded Computing & Design</option>
+      </select>
+
+      <button onclick="loadRegister()" type="button" class="w-full text-white py-2 rounded-lg text-sm gradient-btn"> Load Register</button>
+      
+      <div id="attendanceRegisterContainer" class="overflow-x-auto mt-4 border rounded-lg shadow bg-gray-900 text-xs p-2"></div>
     </div>
   </div>
 
-    <script>
-        function openTab(evt, tabName) {
-            document.querySelectorAll(".tabcontent").forEach(tab => tab.style.display = "none");
-            document.querySelectorAll(".tablinks").forEach(tab => tab.classList.remove("active"));
-            document.getElementById(tabName).style.display = "block";
-            evt.currentTarget.classList.add("active");
+  <!-- JavaScript (reuse your existing logic) -->
+  <script>
+    function openTab(evt, tabName) {
+      document.querySelectorAll(".tabcontent").forEach(tab => tab.style.display = "none");
+      document.querySelectorAll(".tablinks").forEach(btn => btn.classList.remove("active"));
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.classList.add("active");
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const studentList = document.getElementById("students-list");
+      const loadingMessage = document.getElementById("loading");
+
+      async function fetchStudents() {
+        try {
+          const response = await fetch("/teacher/students");
+          const students = await response.json();
+
+          if (!students.length) {
+            loadingMessage.textContent = "No students found.";
+            return;
+          }
+
+          students.sort((a, b) => a.studentID.localeCompare(b.studentID, undefined, { numeric: true }));
+          loadingMessage.style.display = "none";
+          studentList.innerHTML = "";
+          students.forEach(student => {
+            studentList.insertAdjacentHTML("beforeend", `
+              <tr>
+                <td class="p-2 border">${student.studentID}</td>
+                <td class="p-2 border">${student.name}</td>
+                <td class="p-2 border text-center"><input type="checkbox" name="attendance" value="${student.studentID}" checked></td>
+              </tr>`);
+          });
+        } catch (error) {
+          console.error("Error fetching students:", error);
+          loadingMessage.textContent = "Error loading students.";
+        }
+      }
+
+      fetchStudents();
+
+      document.getElementById("attendance-form").addEventListener("submit", async function (event) {
+        event.preventDefault();
+        const date = document.getElementById("date").value;
+        const subject = document.getElementById("subject").value;
+
+        if (!date || !subject) {
+          alert("Please select a date and subject.");
+          return;
         }
 
-        document.addEventListener("DOMContentLoaded", function () {
-            const studentList = document.getElementById("students-list");
-            const loadingMessage = document.getElementById("loading");
+        const formattedDate = new Date(date).toISOString();
+        const selectedStudents = Array.from(document.querySelectorAll('input[name="attendance"]:checked'))
+          .map(checkbox => checkbox.value);
 
-            async function fetchStudents() {
-                try {
-                    const response = await fetch("/teacher/students");
-                    const students = await response.json();
-            
-                    if (!students.length) {
-                        loadingMessage.innerHTML = "No students found.";
-                        return;
-                    }
-                    students.sort((a, b) => a.studentID.localeCompare(b.studentID, undefined, { numeric: true }));
-            
-                    loadingMessage.style.display = "none";
-                    studentList.innerHTML = "";
-                    students.forEach(student => {
-                        studentList.insertAdjacentHTML("beforeend", `
-                            <tr>
-                                <td>${student.studentID}</td>
-                                <td>${student.name}</td>
-                                <td><input type="checkbox" name="attendance" value="${student.studentID}" checked></td>
-                            </tr>`);
-                    });
-                } catch (error) {
-                    console.error("Error fetching students:", error);
-                    loadingMessage.innerHTML = "Error loading students.";
-                }
-            }
-            
+        const attendanceData = { date: formattedDate, subject, studentsPresent: selectedStudents };
 
-            fetchStudents();
+        try {
+          const response = await fetch("/teacher/mark-attendance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(attendanceData)
+          });
 
-            document.getElementById("attendance-form").addEventListener("submit", async function (event) {
-                event.preventDefault();
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || "Failed to submit attendance.");
+          alert("Attendance submitted successfully!");
+        } catch (error) {
+          console.error("Error submitting attendance:", error);
+          alert("Error submitting attendance. Check console for details.");
+        }
+      });
+    });
 
-                const date = document.getElementById("date").value;
-                const subject = document.getElementById("subject").value;
-
-                if (!date || !subject) {
-                    alert("Please select a date and subject.");
-                    return;
-                }
-
-                const selectedStudents = Array.from(document.querySelectorAll('input[name="attendance"]:checked'))
-                    .map(checkbox => checkbox.value);
-
-                const attendanceData = { date, subject, studentsPresent: selectedStudents };
-
-                try {
-                    const response = await fetch("/teacher/mark-attendance", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(attendanceData)
-                    });
-
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(data.message || "Failed to submit attendance.");
-
-                    alert("Attendance submitted successfully!");
-                } catch (error) {
-                    console.error("Error submitting attendance:", error);
-                    alert("Error submitting attendance. Check console for details.");
-                }
-            });
-        });
- async function loadRegister() {
+    async function loadRegister() {
       const subject = document.getElementById('subjectSelect').value;
+      if (!subject) return alert("Please select a subject.");
       const res = await fetch(`/teacher/attendance-register?subject=${encodeURIComponent(subject)}`);
       const data = await res.json();
-    
+
       const { students, attendanceMap } = data;
-    
-      const dates = Object.keys(attendanceMap).sort(); // sort dates for column headers
+      const dates = Object.keys(attendanceMap).sort();
+
       const table = document.createElement('table');
-      table.border = '1';
-      table.style.borderCollapse = 'collapse';
-    
-      // Header Row
+      table.className = "min-w-full table-auto border border-gray-600 text-xs text-center";
       const headerRow = document.createElement('tr');
-      headerRow.innerHTML = `<th>Student ID</th><th>Name</th>` +
-        dates.map(date => `<th>${date}</th>`).join('');
+      headerRow.innerHTML = `<th class="p-2 border">ID</th><th class="p-2 border">Name</th>` +
+        dates.map(date => `<th class="p-2 border">${date}</th>`).join('');
       table.appendChild(headerRow);
-    
-      // Body Rows
+      students.sort((a, b) => a.studentID.localeCompare(b.studentID, undefined, { numeric: true }));
       students.forEach(student => {
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${student.studentID}</td><td>${student.name}</td>` +
+        row.innerHTML = `<td class="p-2 border">${student.studentID}</td><td class="p-2 border">${student.name}</td>` +
           dates.map(date => {
             const presentIDs = attendanceMap[date].map(id => id.toString());
-            return `<td class="attendance-status" data-status="${presentIDs.includes(student._id) ? 'P' : 'A'}" style="text-align:center;">
-                      ${presentIDs.includes(student._id) ? 'P' : 'A'}
-                    </td>`;
+            const status = presentIDs.includes(student._id) ? 'P' : 'A';
+            return `<td class="p-2 border">${status}</td>`;
           }).join('');
         table.appendChild(row);
       });
-    
+
       const container = document.getElementById('attendanceRegisterContainer');
       container.innerHTML = '';
       container.appendChild(table);
-    
-      // After loading, enable the EDIT button
-      document.getElementById("editButton").style.display = 'inline-block';
     }
-    
-    // Function to toggle between view and edit mode
-    function toggleEditMode() {
-      const statusCells = document.querySelectorAll('.attendance-status');
-      const editButton = document.getElementById("editButton");
-      const saveButton = document.getElementById("saveChangesBtn");
-    
-      // Toggle editable status for each attendance cell
-      statusCells.forEach(cell => {
-        cell.classList.toggle("editable");
-        cell.addEventListener("click", toggleStatus);
-      });
-    
-      // Toggle the button text between "EDIT" and "Done"
-      if (editButton.textContent === "EDIT") {
-        editButton.textContent = "Done"; // After clicking EDIT, show "Done"
-      } else {
-        editButton.textContent = "EDIT"; // Revert back to EDIT when clicking Done
-      }
-    
-      // Show Save Changes button
-      saveButton.style.display = saveButton.style.display === "none" ? "inline-block" : "none";
-    }
-    
-    // Function to toggle attendance status between P and A
-    function toggleStatus() {
-      const currentStatus = this.dataset.status;
-      const newStatus = currentStatus === 'P' ? 'A' : 'P';
-      this.textContent = newStatus;
-      this.dataset.status = newStatus;
-    }
-    
-    // Function to save changes (you can integrate it with backend)
-    function saveAttendanceChanges() {
-      const attendanceData = [];
-    
-      // Collect modified attendance data
-      document.querySelectorAll('.attendance-status').forEach(cell => {
-        const studentID = cell.parentElement.cells[0].textContent;
-        const date = cell.parentElement.cells[2].textContent; // Get the date from table header
-        const status = cell.textContent === 'P' ? 'P' : 'A';
-        attendanceData.push({ studentID, date, status });
-      });
-    
-      // Send modified attendance data to backend
-      fetch("/teacher/save-attendance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attendanceData })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert("Attendance updated successfully!");
-          document.getElementById("saveChangesBtn").style.display = "none"; // Hide Save Changes button
-        } else {
-          alert("Error saving changes.");
-        }
-      })
-      .catch(error => {
-        console.error("Error saving attendance:", error);
-      });
-    }
-     
-    </script>
+  </script>
 </body>
 </html>
