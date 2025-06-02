@@ -61,10 +61,17 @@
 
     <!-- Tab Buttons -->
     <div class="flex gap-2 mb-6">
-      <button class="tablinks active flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'MarkAttendance')">Mark Attendance</button>
-      <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'ViewAttendance')">View Attendance</button>
+      <button class="tablinks active flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'MarkAttendance')">
+        Mark Attendance
+      </button>
+      <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'ViewAttendance')">
+        View Attendance
+      </button>
+      <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'CreateNew')">
+        + Create New
+      </button>
     </div>
-
+    
     <!-- Mark Attendance Tab -->
     <div id="MarkAttendance" class="tabcontent block">
       <h2 class="text-xl font-semibold mb-4"> Mark Attendance</h2>
@@ -100,27 +107,87 @@
       </form>
     </div>
 
-    <!-- View Attendance Tab -->
-    <div id="ViewAttendance" class="tabcontent hidden">
-      <h2 class="text-xl font-semibold mb-4"> View Attendance</h2>
+  <!-- View Attendance Tab -->
+<div id="ViewAttendance" class="tabcontent hidden">
+  <h2 class="text-xl font-semibold mb-4">View Attendance</h2>
 
-      <label for="subjectSelect" class="block text-sm mb-1"> Select Subject:</label>
-      <select id="subjectSelect" class="w-full p-2 bg-gray-700 text-white rounded-lg mb-4 text-sm">
-        <option value="">-- Select Subject --</option>
-        <option value="ML">Machine Learning</option>
-        <option value="Software Testing">Software Testing</option>
-        <option value="MAD">Mobile App Development</option>
-        <option value="ECD">Embedded Computing & Design</option>
-      </select>
+  <label for="subjectSelect" class="block text-sm mb-1">Select Subject:</label>
+  <select id="subjectSelect" class="w-full p-2 bg-gray-700 text-white rounded-lg mb-4 text-sm">
+    <option value="">-- Select Subject --</option>
+    <option value="ML">Machine Learning</option>
+    <option value="Software Testing">Software Testing</option>
+    <option value="MAD">Mobile App Development</option>
+    <option value="ECD">Embedded Computing & Design</option>
+  </select>
 
-      <button onclick="loadRegister()" type="button" class="w-full text-white py-2 rounded-lg text-sm gradient-btn"> Load Register</button>
-      
-      <div id="attendanceRegisterContainer" class="overflow-x-auto mt-4 border rounded-lg shadow bg-gray-900 text-xs p-2"></div>
-    </div>
+  <div class="flex flex-col md:flex-row md:items-center gap-2 mb-4">
+    <button onclick="loadRegister()" type="button" class="flex-grow text-white py-2 rounded-lg text-sm gradient-btn">
+      Load Register
+    </button>
+    <button onclick="exportToExcel()" type="button" class="flex-grow md:flex-grow-0 text-white py-2 px-4 rounded-lg text-sm gradient-btn">
+      Export as Excel
+    </button>
   </div>
+  
+  <div id="attendanceRegisterContainer" class="overflow-x-auto mt-4 border rounded-lg shadow bg-gray-900 text-xs p-2"></div>
+</div>
+
+<!-- SheetJS CDN for Excel Export -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<div id="CreateNew" class="tabcontent" style="display:none;">
+  <h2 class="text-lg font-semibold mb-4 text-white">Create New Stream & Class</h2>
+
+  <input id="stream" placeholder="Stream (e.g., BCA)" class="block w-full mb-2 p-2 border rounded bg-black text-white" />
+  
+  <input id="year" placeholder="Year (e.g., 3rd Year)" class="block w-full mb-2 p-2 border rounded bg-black text-white" />
+  
+  <!-- Removed Section input -->
+  
+  <input id="subjects" placeholder="Subjects (comma-separated)" class="block w-full mb-2 p-2 border rounded bg-black text-white" />
+
+  <button id="submitClass" class="gradient-btn px-4 py-2 rounded mt-2">Create</button>
+</div>
+
+
 
   <!-- JavaScript (reuse your existing logic) -->
   <script>
+    document.getElementById("submitClass").addEventListener("click", async () => {
+      const stream = document.getElementById("stream").value;
+      const year = document.getElementById("year").value;
+      const subjects = document.getElementById("subjects").value.split(",").map(s => s.trim());
+    
+      if (!stream || !year || subjects.length === 0) {
+        alert("Please fill all fields");
+        return;
+      }
+    
+      const data = { stream, year, subjects }; // ❌ Removed section
+    
+      try {
+        const response = await fetch("/api/teacher/add-class", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(data)
+        });
+    
+        const result = await response.json();
+        if (response.ok) {
+          alert("✅ " + result.message);
+          document.getElementById("stream").value = "";
+          document.getElementById("year").value = "";
+          document.getElementById("subjects").value = "";
+        } else {
+          alert("❌ " + result.message);
+        }
+      } catch (error) {
+        console.error("❌ Error:", error);
+        alert("❌ Failed to create class");
+      }
+    });
+    
     function openTab(evt, tabName) {
       document.querySelectorAll(".tabcontent").forEach(tab => tab.style.display = "none");
       document.querySelectorAll(".tablinks").forEach(btn => btn.classList.remove("active"));
@@ -193,38 +260,195 @@
         }
       });
     });
-
     async function loadRegister() {
       const subject = document.getElementById('subjectSelect').value;
       if (!subject) return alert("Please select a subject.");
+    
       const res = await fetch(`/teacher/attendance-register?subject=${encodeURIComponent(subject)}`);
       const data = await res.json();
-
+    
       const { students, attendanceMap } = data;
       const dates = Object.keys(attendanceMap).sort();
-
-      const table = document.createElement('table');
-      table.className = "min-w-full table-auto border border-gray-600 text-xs text-center";
-      const headerRow = document.createElement('tr');
-      headerRow.innerHTML = `<th class="p-2 border">ID</th><th class="p-2 border">Name</th>` +
-        dates.map(date => `<th class="p-2 border">${date}</th>`).join('');
-      table.appendChild(headerRow);
-      students.sort((a, b) => a.studentID.localeCompare(b.studentID, undefined, { numeric: true }));
-      students.forEach(student => {
-        const row = document.createElement('tr');
-        row.innerHTML = `<td class="p-2 border">${student.studentID}</td><td class="p-2 border">${student.name}</td>` +
-          dates.map(date => {
-            const presentIDs = attendanceMap[date].map(id => id.toString());
-            const status = presentIDs.includes(student._id) ? 'P' : 'A';
-            return `<td class="p-2 border">${status}</td>`;
-          }).join('');
-        table.appendChild(row);
-      });
-
+    
+      // Clear and build container content
       const container = document.getElementById('attendanceRegisterContainer');
       container.innerHTML = '';
+    
+      const table = document.createElement('table');
+      table.className = "min-w-full table-auto border border-gray-600 text-xs text-center";
+    
+      // Header row with two extra columns for totals
+      const headerRow = document.createElement('tr');
+      headerRow.innerHTML = `<th class="p-2 border">ID</th><th class="p-2 border">Name</th>` +
+        dates.map(date => `<th class="p-2 border">${date}</th>`).join('') +
+        `<th class="p-2 border">Total Classes</th><th class="p-2 border">Attended Classes</th>`;
+      table.appendChild(headerRow);
+    
+      students.sort((a, b) => a.studentID.localeCompare(b.studentID, undefined, { numeric: true }));
+    
+      students.forEach(student => {
+        const row = document.createElement('tr');
+        row.dataset.studentId = student._id;
+    
+        // Base cells for ID and Name
+        row.innerHTML = `<td class="p-2 border">${student.studentID}</td><td class="p-2 border">${student.name}</td>`;
+    
+        // Track how many classes student attended
+        let attendedCount = 0;
+        const totalClasses = dates.length;
+    
+        dates.forEach(date => {
+          const presentIDs = attendanceMap[date].map(id => id.toString());
+          const isPresent = presentIDs.includes(student._id.toString());
+    
+          if (isPresent) attendedCount++;
+    
+          const checkboxHTML = `
+            <td class="p-2 border">
+              <input type="checkbox" data-date="${date}" ${isPresent ? 'checked' : ''} />
+            </td>
+          `;
+          row.innerHTML += checkboxHTML;
+        });
+    
+        // Add total classes and attended classes columns
+        row.innerHTML += `
+          <td class="p-2 border font-semibold">${totalClasses}</td>
+          <td class="p-2 border font-semibold">${attendedCount}</td>
+        `;
+    
+        table.appendChild(row);
+      });
+    
       container.appendChild(table);
+    
+      // Add Save button below table
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = "Save Changes";
+      saveBtn.className = "mt-4 w-full py-2 rounded-lg gradient-btn text-sm font-medium";
+      saveBtn.onclick = saveAttendanceUpdates;
+      container.appendChild(saveBtn);
+    
+      // Store current dates and subject globally for use in save function
+      window.currentAttendanceDates = dates;
+      window.currentAttendanceSubject = subject;
     }
+    
+    async function saveAttendanceUpdates() {
+      const container = document.getElementById('attendanceRegisterContainer');
+      if (!container) {
+        alert('Attendance container not found.');
+        return;
+      }
+    
+      const table = container.querySelector('table');
+      if (!table) {
+        alert('Attendance table not found.');
+        return;
+      }
+    
+      const dates = window.currentAttendanceDates;
+      const subject = window.currentAttendanceSubject;
+    
+      if (!Array.isArray(dates) || dates.length === 0) {
+        alert('No attendance dates available.');
+        return;
+      }
+      if (!subject) {
+        alert('No subject selected.');
+        return;
+      }
+    
+      // Initialize attendance map with empty arrays for each date
+      const attendanceUpdateMap = {};
+      dates.forEach(date => {
+        attendanceUpdateMap[date] = [];
+      });
+    
+      // Loop through each student row (skip header)
+      for (let i = 1; i < table.rows.length; i++) {
+        const row = table.rows[i];
+        const studentId = row.dataset.studentId;
+        if (!studentId) continue; // skip if no studentId
+    
+        // Iterate over attendance checkbox columns (start from index 2)
+        for (let j = 2; j < row.cells.length; j++) {
+          const checkbox = row.cells[j].querySelector('input[type="checkbox"]');
+          if (!checkbox) continue;
+    
+          const date = checkbox.dataset.date;
+          if (!date || !(date in attendanceUpdateMap)) continue;
+    
+          if (checkbox.checked) {
+            attendanceUpdateMap[date].push(studentId);
+          }
+        }
+      }
+    
+      try {
+        const response = await fetch('/teacher/update-attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subject, attendanceUpdateMap }),
+        });
+    
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || 'Failed to update attendance');
+        }
+    
+        alert('Attendance updated successfully!');
+        if (typeof loadRegister === 'function') {
+          loadRegister(); // Reload attendance register UI
+        }
+      } catch (error) {
+        console.error('Error updating attendance:', error);
+        alert('Error updating attendance. Please check console for details.');
+      }
+    }
+    
+      function exportToExcel() {
+        const table = document.querySelector('#attendanceRegisterContainer table');
+        if (!table) return alert("No attendance data available.");
+    
+        const rows = table.querySelectorAll('tr');
+        const headers = Array.from(rows[0].children).slice(2, -2).map(th => th.textContent); // Dates
+    
+        const exportData = [];
+    
+        for (let i = 1; i < rows.length; i++) {
+          const cells = rows[i].querySelectorAll('td');
+          const studentID = cells[0].textContent;
+          const studentName = cells[1].textContent;
+    
+          let attended = 0;
+          const rowData = {
+            "Student ID": studentID,
+            "Name": studentName
+          };
+    
+          for (let j = 2; j < cells.length - 2; j++) {
+            const checkbox = cells[j].querySelector('input[type="checkbox"]');
+            const date = headers[j - 2];
+            const status = checkbox && checkbox.checked ? "Present" : "Absent";
+            if (status === "Present") attended++;
+            rowData[date] = status;
+          }
+    
+          rowData["Total Classes"] = headers.length;
+          rowData["Attended Classes"] = attended;
+    
+          exportData.push(rowData);
+        }
+    
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Summary");
+    
+        XLSX.writeFile(workbook, "Attendance_Summary.xlsx");
+      }
+  
+    
   </script>
 </body>
 </html>
