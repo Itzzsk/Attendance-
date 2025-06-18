@@ -3,8 +3,7 @@ const router = express.Router();
 
 const Student = require("../models/student");
 const Attendance = require("../models/Attendance");
-const ClassInfo = require("../models/ClassInfo"); // Make sure this model exists and is correct
-
+const sendWhatsAppMessage = require('../utils/sendWhatsAppMessage');
 // ==============================
 // 📌 STUDENT ROUTES
 // ==============================
@@ -30,27 +29,53 @@ router.post("/mark-attendance", async (req, res) => {
     let { date, subject, studentsPresent } = req.body;
     const formattedDate = new Date(date).toISOString().split("T")[0];
 
-    // Find student _ids for the present studentIDs
+    // Get present students' _ids
     const presentStudents = await Student.find({ studentID: { $in: studentsPresent } }).select("_id");
-    const presentStudentIds = presentStudents.map(s => s._id);
+    const presentStudentIds = presentStudents.map(s => s._id.toString());
 
-    // Find existing attendance for date and subject
+    // Find or create attendance record
     let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
-
     if (!attendanceRecord) {
       attendanceRecord = new Attendance({ date: formattedDate, subject, presentStudents: presentStudentIds });
     } else {
       attendanceRecord.presentStudents = presentStudentIds;
     }
-
     await attendanceRecord.save();
-    res.json({ message: "✅ Attendance submitted successfully!" });
 
+    // Find all students
+    const allStudents = await Student.find();
+
+    // Identify absent students: those NOT in presentStudentIds
+    const absentStudents = allStudents.filter(student => !presentStudentIds.includes(student._id.toString()));
+
+    // Send WhatsApp alert to all absent students' parents
+    absentStudents.forEach(student => {
+      if (student.parentPhone) {
+        const msg = `Dear Parent, your child ${student.name} was absent on ${formattedDate} for ${subject}.`;
+        sendWhatsAppMessage(student.parentPhone, msg);
+      } else {
+        console.warn(`No parentPhone for student: ${student.studentID} - ${student.name}`);
+      }
+    });
+
+    res.json({ message: "✅ Attendance recorded and alerts sent to absentees' parents." });
   } catch (error) {
     console.error("❌ Error submitting attendance:", error);
     res.status(500).json({ message: "❌ Server error while marking attendance" });
   }
 });
+
+// GET: Fetch all subjects from Subject collection
+router.get("/subjects", async (req, res) => {
+  try {
+    const subjects = await Subject.find().sort({ name: 1 });
+    res.json(subjects);
+  } catch (error) {
+    console.error("❌ Error fetching subjects:", error);
+    res.status(500).json({ message: "Failed to fetch subjects" });
+  }
+});
+
 
 // PUT: Update attendance record and increment attended/total classes
 router.put("/update-attendance", async (req, res) => {
@@ -148,38 +173,29 @@ router.post("/update-attendance", async (req, res) => {
   }
 });
 
-// ==============================
-// 📌 CLASS MANAGEMENT ROUTES
-// ==============================
+// POST: Add student
+router.post('/add-student', async (req, res) => {
+  const { studentID, name } = req.body;
 
-// POST: Add new class info (stream, year, subjects)
-router.post("/add-class", async (req, res) => {
+  if (!studentID || !name) {
+    return res.status(400).json({ message: "Student ID and Name are required." });
+  }
+
   try {
-    const { stream, year, subjects } = req.body;
+    // Check if student already exists
+    const existingStudent = await Student.findOne({ studentID });
 
-    if (!stream || !year || !Array.isArray(subjects)) {
-      return res.status(400).json({ message: "❌ Invalid class data" });
+    if (existingStudent) {
+      return res.status(409).json({ message: "Student with this ID already exists." });
     }
 
-    const newClass = new ClassInfo({ stream, year, subjects });
-    await newClass.save();
+    const newStudent = new Student({ studentID, name, totalAttended: 0 });
+    await newStudent.save();
 
-    res.status(200).json({ message: "✅ Class Created Successfully" });
-
+    res.status(201).json({ message: "Student added successfully!" });
   } catch (error) {
-    console.error("❌ Error creating class:", error);
-    res.status(500).json({ message: "❌ Failed to create class" });
-  }
-});
-
-// GET: Fetch all classes info
-router.get("/classes", async (req, res) => {
-  try {
-    const classes = await ClassInfo.find();
-    res.json(classes);
-  } catch (error) {
-    console.error("❌ Error fetching classes:", error);
-    res.status(500).json({ message: "❌ Failed to fetch classes" });
+    console.error("Error adding student:", error);
+    res.status(500).json({ message: "Internal server error." });
   }
 });
 
